@@ -20,42 +20,71 @@ class JSAPObject:
     
     Attributes
     ----------
-    jsap : dict
+    jsapDict : dict
         The full dictionary with the JSAP content
-    namespaces : dict
-        Dictionary with prefixes (keys) and namespaces (values)
-    queries : dict
-        Dictionary with SPARQL query templates (values) indexed by a friendly name (key)
-    updates : dict
-        Dictionary with SPARQL update templates (values) indexed by a friendly name (key)
-    updateURI : str
-        The URI to perform SPARQL updates
-    queryURI : str
-        The URI to perform SPARQL queries
-    subscribeURI : str
-        The URI to perform SPARQL subscriptions
     host : str
         The hostname of the SEPA instance
-    httpPort : int
-        The port number for unsecure HTTP connection
-    httpsPort : int
-        The port number for secure HTTP connection
-    wsPort : int
-        The port number for unsecure Websocket connection
-    wssPort : int
-        The port number for secure Websocket connection
+    unsecureHost: str
+        Optional value, it will be used in future
+    protocol : str
+        Protocol to be used for queries
+    port : int
+        The port number for queries    
     queryPath : str
         The path to the query resource of the SEPA instance
     updatePath : str
-        The path to the update resource of the SEPA instance
-    subscribePath : str
+        The path to the update resource of the SEPA instance   
+        
+    SEhost: str
+        Optional value, it will be used in future    
+    SEProtocol : str
+        In future SEPA will understand what protocol should be used
+    wsPort : int
+        The port number for unsecure Websocket connection
+    unsecureSubscribePath : str
         The path to the subscribe resource of the SEPA instance
+    wssPort : int
+        The port number for secure Websocket connection
+    secureSubscribePath : str
+        The path to the secure subscribe resource of the SEPA instance
+      
+    secureHost: str
+        The hostname for secure requests (such as oauth related requests), optional
+    securePort : int
+        The port number for secure oauth connection
     registerPath : str
         The path to register to the SEPA instance
     tokenRequestPath : str
         The path to request a token for secure connections to the SEPA instance
     securePath : str
         The path to compose URIs for secure connections to SEPA
+    
+    updateURI : str
+        The URI to perform SPARQL updates
+    queryURI : str
+        The URI to perform SPARQL queries
+    subscribeURI : str
+        The URI to perform SPARQL subscriptions
+        
+    secureUpdateURI : str
+        The URI to perform secure SPARQL updates
+    secureQueryURI : str
+        The URI to perform secure SPARQL queries
+    secureSubscribeURI : str
+        The URI to perform secure SPARQL subscriptions
+        
+    tokenReqURI : str
+        The URI to perform secure SPARQL token requests
+    registerURI : str
+        The URI to perform secure SPARQL registrations    
+    
+    namespaces : dict
+        Dictionary with prefixes (keys) and namespaces (values)
+    queries : dict
+        Dictionary with SPARQL query templates (values) indexed by a friendly name (key)   
+    updates : dict
+        Dictionary with SPARQL update templates (values) indexed by a friendly name (key)  
+    
     """
 
     def __init__(self, jsapFile, logLevel = 10):
@@ -78,6 +107,9 @@ class JSAPObject:
         self.logger.setLevel(logLevel)
         self.logger.debug("=== JSAPObject::__init__ invoked ===")
 
+        # store the file name
+        self.jsapFile = jsapFile
+        
         # try to open JSAP File
         try:
             with open(jsapFile) as jsapFileStream:
@@ -88,34 +120,52 @@ class JSAPObject:
 
         # try to read the network configuration
         try:
-            self.host = self.jsapDict["parameters"]["host"]
-            self.httpPort = self.jsapDict["parameters"]["ports"]["http"]
-            self.httpsPort = self.jsapDict["parameters"]["ports"]["https"]
-            self.wsPort = self.jsapDict["parameters"]["ports"]["ws"]
-            self.wssPort = self.jsapDict["parameters"]["ports"]["wss"]
-            self.queryPath = self.jsapDict["parameters"]["paths"]["query"]
-            self.updatePath = self.jsapDict["parameters"]["paths"]["update"]
-            self.subscribePath = self.jsapDict["parameters"]["paths"]["subscribe"]
-            self.registerPath = self.jsapDict["parameters"]["paths"]["register"]
-            self.tokenRequestPath = self.jsapDict["parameters"]["paths"]["tokenRequest"]
-            self.securePath = self.jsapDict["parameters"]["paths"]["securePath"]
+            self.host = self.jsapDict["host"]
+            self.unsecureHost = self.jsapDict["sparql11protocol"].get("host","")
+            self.protocol = self.jsapDict["sparql11protocol"]["protocol"]
+            self.port = self.jsapDict["sparql11protocol"]["port"]
+            self.queryPath = self.jsapDict["sparql11protocol"]["query"]["path"]
+            self.updatePath = self.jsapDict["sparql11protocol"]["update"]["path"]
+            
+            self.SEhost = self.jsapDict["sparql11seprotocol"].get("host","")
+            self.SEProtocol = self.jsapDict["sparql11seprotocol"]["protocol"]
+            self.wsPort = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["ws"]["port"]
+            self.unsecureSubscribePath = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["ws"]["path"]
+            self.wssPort = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["port"]
+            self.secureSubscribePath = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["path"]
+            
+            security = self.jsapDict["sparql11seprotocol"]["security"]
+            self.secureHost = security.get("host", "")
+            self.securePort = security["port"]
+            self.registerPath = security["registration"]
+            self.tokenRequestPath = security["tokenRequest"]
+            self.securePath = security["securePath"]
+            self.client_id = security.get("client_id")
+            self.client_name = security.get("client_secret")
+            self.client_secret = security.get("client_id")
+            self.jwt = security.get("jwt")
+            self.expiry = security.get("expires")
+            
         except KeyError as e:
             self.logger.error("Network configuration incomplete in JSAP file")
             raise JSAPParsingException("Network configuration incomplete in JSAP file")
-
-        # define attributes for secure connection
-        self.secureSubscribeUri = "wss://%s:%s%s%s" % (self.host, self.wssPort, self.securePath, self.subscribePath)
-        self.secureUpdateUri = "https://%s:%s%s%s" % (self.host, self.httpsPort, self.securePath, self.updatePath)
-        self.secureQueryUri = "https://%s:%s%s%s" % (self.host, self.httpsPort, self.securePath, self.queryPath)
+            
+        # initialize user data
         
+            
         # define attributes for unsecure connection
-        self.subscribeUri = "ws://%s:%s%s" % (self.host, self.wsPort, self.subscribePath)
-        self.updateUri = "http://%s:%s%s" % (self.host, self.httpPort, self.updatePath)
-        self.queryUri = "http://%s:%s%s" % (self.host, self.httpPort, self.queryPath)
+        self.subscribeURI = "ws://%s:%s%s" % (self.host, self.wsPort, self.unsecureSubscribePath)
+        self.updateURI = "http://%s:%s%s" % (self.host, self.port, self.updatePath)
+        self.queryURI = "http://%s:%s%s" % (self.host, self.port, self.queryPath)
+        
+        # define attributes for secure connection
+        self.secureSubscribeURI = "wss://%s:%s%s%s" % (self.host, self.wssPort, self.securePath, self.secureSubscribePath)
+        self.secureUpdateURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.updatePath)
+        self.secureQueryURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.queryPath)
 
         # define attributes for registration and token request
-        self.tokenReqUri = "https://%s:%s%s" % (self.host, self.httpsPort, self.tokenRequestPath)
-        self.registerUri = "https://%s:%s%s" % (self.host, self.httpsPort, self.registerPath)
+        self.tokenReqURI = "https://%s:%s%s" % (self.host, self.securePort, self.tokenRequestPath)
+        self.registerURI = "https://%s:%s%s" % (self.host, self.securePort, self.registerPath)
 
         # read namespaces
         self.namespaces = {}
@@ -147,7 +197,7 @@ class JSAPObject:
     def getQuery(self, queryName, forcedBindings):
 
         """
-        Returns a SPARQL query retrieved from the YSAP and
+        Returns a SPARQL query retrieved from the JSAP and
         modified with the forced bindings provided by the user.
 
         Parameters
@@ -174,7 +224,7 @@ class JSAPObject:
     def getUpdate(self, updateName, forcedBindings):
 
         """
-        Returns a SPARQL update retrieved from the YSAP and
+        Returns a SPARQL update retrieved from the JSAP and
         modified with the forced bindings provided by the user.
 
         Parameters
@@ -201,7 +251,7 @@ class JSAPObject:
     def getSparql(self, isQuery, sparqlName, forcedBindings):
         
         """
-        Returns a SPARQL query/update retrieved from the YSAP and 
+        Returns a SPARQL query/update retrieved from the JSAP and 
         modified with the forced bindings provided by the user.
 
         Parameters
@@ -289,3 +339,58 @@ class JSAPObject:
 
         # return
         return self.nsSparql + jsapSparql
+     
+     
+    # read client_id
+    def readClientId(self):
+        
+        """Retrieves the client id form file, if present"""
+        
+        try:
+            self.client_id = self.jsapDict["client_id"]
+        except KeyError:
+            pass
+
+
+    # read client_id
+    def readClientName(self):
+        
+        """Retrieves the client id form file, if present"""
+        
+        try:
+            self.client_name = self.jsapDict["client_name"]
+        except KeyError:
+            pass
+
+
+    # read client_secret
+    def readClientSecret(self):
+        
+        """Retrieves the client secret form file, if present"""
+        
+        try:
+            self.client_secret = self.jsapDict["client_secret"]
+        except KeyError:
+            pass
+
+
+    # read token
+    def readToken(self):
+        
+        """Retrieves the token form file, if present"""
+        
+        try:
+            self.jwt = self.jsapDict["jwt"]
+        except KeyError:
+            pass
+
+
+    # store config
+    def storeConfig(self):
+
+        """Method used to update the content of the JSAP file"""
+
+        # store data into file
+        with open(self.jsapFile, "w") as jsapFileStream:
+            json.dump(self.jparDict, jsapFileStream, indent=4)
+            jsapFileStream.truncate()
