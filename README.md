@@ -13,6 +13,8 @@ and
 
 (this one as root).
 
+Future plans: add possibility to install the library using pip.
+
 To use the classes you have to import them in this way:
 
 ```
@@ -26,8 +28,6 @@ from sepy.JSAPObject import *
 ```
 
 This library consists of 6 classes that can be used for different purposes:
-
-- JPARHandler: An handler class for JPAR files
 - JSAPObject: An handler class for JSAP files
 - YSAPObject: An handler class for YSAP files
 - SEPAClient: A low-level class used to develop a client for SEPA
@@ -39,28 +39,40 @@ Let's talk about some classes deeply:
 
 These APIs allows to develop a client for the SEPA platform using a simple interface. First of all the class SEPAClient must be initialized. Then the standard methods to interact with the broker are available.
 
-### Parameters:
-- jparFile :
-  A string indicating the name with relative/full path of the JPAR file used to exploit the security mechanism. Default = None
+### Initialization parameters:
+- File :
+  A string indicating the name with relative/full path of the YSAP or JSAP file used for configuration
 - logLevel :
   A number indicating the desired log level. Default = 40
 The parameters are optional. They activate query, update, subscribe, unsubscribe methods.
 
-### Attributes:
-- subscriptions :
-  A dictionary to keep track of the active subscriptions
-- connectionManager :
-  The underlying responsible for network connections
-
 ### Creating a SEPAClient
 
 ```python
-sc = SEPAClient()
+sc = SEPAClient(File) # A JSAP or YSAP file
 ```
 
 ### Query and Update
 
-These two methods (`query` and `update`) expect the SEPA URI, a SPARQL query/update and a boolean specifying whether security mechanisms should be used or not. When a new query/update is issued, it may be preferrable to catch the `RegistrationFailedExceptions`, `TokenExpiredException` and `TokenRequestFailedException`errors.
+These two methods (`query` and `update`) return a boolean indicating the request's success and a JSON with the results of the requests.
+
+#### Query and Update parameters:
+- queryName/updateName :
+  A string indicating the friendly name for the query in JSAP or YSAP file; the complete query/update string will be obtained by the parser
+- forcedBindings :
+  A dictionary for in-request name replacements; by default it is empty
+- secure :
+  A boolean specifying whether security mechanisms should be used or not; by default it is set as unsecure
+- tokenURI :
+  A string indicating the URI for the token request; can be omitted
+- registerURI :
+  A string indicating the URI for the registration request; can be omitted
+  
+Refering to the previous example:
+
+```python
+simple_query = sc.query(queryName, forcedBindings)
+```
 
 ### Subscribe and Unsubscribe
 
