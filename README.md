@@ -72,7 +72,7 @@ queryName = "MQTT_TOPICS"
 simple_query = sc.query(queryName, {})
 updateName = "MQTT_MESSAGE"
 forcedBindings = {"topic":"top2", "broker":"brok2", "value":"val2"}
-simple_update = sc.query(updateName, forcedBindings)
+simple_update = sc.update(updateName, forcedBindings)
 ```
 
 ### Subscribe and Unsubscribe
