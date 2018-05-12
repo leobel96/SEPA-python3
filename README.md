@@ -1,4 +1,4 @@
-# SEPA-python3-APIs
+# SEPA-python3
 Client-side libraries for the SEPA platform (Python3)
 
 ## Installation and usage
