@@ -69,7 +69,9 @@ These two methods (`query` and `update`) return a boolean indicating the request
 Refering to the previous example:
 
 ```python
-simple_query = sc.query(queryName, forcedBindings)
+forcedBindings{"binding1" : "value1", "binding2" : "value2"}
+simple_query = sc.query(queryName, {})
+simple_update = sc.query(queryName, forcedBindings)
 ```
 
 ### Subscribe and Unsubscribe
