@@ -134,17 +134,29 @@ class JSAPObject:
             self.wssPort = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["port"]
             self.secureSubscribePath = self.jsapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["path"]
             
-            security = self.jsapDict["sparql11seprotocol"]["security"]
-            self.secureHost = security.get("host", "")
-            self.securePort = security["port"]
-            self.registerPath = security["registration"]
-            self.tokenRequestPath = security["tokenRequest"]
-            self.securePath = security["securePath"]
-            self.client_id = security.get("client_id")
-            self.client_name = security.get("client_secret")
-            self.client_secret = security.get("client_id")
-            self.jwt = security.get("jwt")
-            self.expiry = security.get("expires")
+            security = self.jsapDict["sparql11seprotocol"].get("security")
+            if security is not None:
+                self.secureHost = security.get("host")
+                self.securePort = security.get("port")
+                self.registerPath = security.get("registration")
+                self.tokenRequestPath = security.get("tokenRequest")
+                self.securePath = security.get("securePath")
+                self.client_id = security.get("client_id")
+                self.client_name = security.get("client_secret")
+                self.client_secret = security.get("client_id")
+                self.jwt = security.get("jwt")
+                self.expiry = security.get("expires")
+            else:
+                self.secureHost = None
+                self.securePort = None
+                self.registerPath = None
+                self.tokenRequestPath = None
+                self.securePath = None
+                self.client_id = None
+                self.client_name = None
+                self.client_secret = None
+                self.jwt = None
+                self.expiry = None
             
         except KeyError as e:
             self.logger.error("Network configuration incomplete in JSAP file")
@@ -159,13 +171,15 @@ class JSAPObject:
         self.queryURI = "http://%s:%s%s" % (self.host, self.port, self.queryPath)
         
         # define attributes for secure connection
-        self.secureSubscribeURI = "wss://%s:%s%s%s" % (self.host, self.wssPort, self.securePath, self.secureSubscribePath)
-        self.secureUpdateURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.updatePath)
-        self.secureQueryURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.queryPath)
+        if self.securePath is not None and self.wssPort is not None and self.securePort is not None:
+            self.secureSubscribeURI = "wss://%s:%s%s%s" % (self.host, self.wssPort, self.securePath, self.secureSubscribePath)
+            self.secureUpdateURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.updatePath)
+            self.secureQueryURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.queryPath)
 
         # define attributes for registration and token request
-        self.tokenReqURI = "https://%s:%s%s" % (self.host, self.securePort, self.tokenRequestPath)
-        self.registerURI = "https://%s:%s%s" % (self.host, self.securePort, self.registerPath)
+        if self.securePort is not None and self.tokenRequestPath is not None and self.registerPath is not None:
+            self.tokenReqURI = "https://%s:%s%s" % (self.host, self.securePort, self.tokenRequestPath)
+            self.registerURI = "https://%s:%s%s" % (self.host, self.securePort, self.registerPath)
 
         # read namespaces
         self.namespaces = {}

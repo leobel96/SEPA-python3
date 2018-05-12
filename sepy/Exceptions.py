@@ -11,12 +11,10 @@ class TokenRequestFailedException(Exception):
 
 class JSAPParsingException(Exception):
     pass
-
-class JPARParsingException(Exception):
-    pass
-
-class MissingJPARException(Exception):
-    pass
-
 class YSAPParsingException(Exception):
     pass
+
+class WrongFileException(Exception):
+    pass
+
+

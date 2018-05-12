@@ -11,10 +11,12 @@ import time
 import json
 import sys
 import ssl
+from os.path import splitext
 
 # local requirements
 from .Exceptions import *
-from .JPARHandler import *
+from .JSAPObject import *
+from .YSAPObject import *
 
 # class ConnectionHandler
 class ConnectionHandler:
@@ -22,7 +24,7 @@ class ConnectionHandler:
     """This is the ConnectionHandler class"""
 
     # constructor
-    def __init__(self, jpar = None, logLevel = 10):
+    def __init__(self, File, logLevel = 10):
         
         """Constructor of the ConnectionHandler class"""
 
@@ -32,17 +34,17 @@ class ConnectionHandler:
         self.logger.debug("=== ConnectionHandler::__init__ invoked ===")
         logging.getLogger("urllib3").setLevel(logLevel)
         logging.getLogger("requests").setLevel(logLevel)
-
-        # jpar
-        self.jpar = jpar
-        if jpar != None:
-            self.jparHandler = JPARHandler(jpar)
-        else:
-            self.jparHandler = None
             
         # open subscriptions
         self.websockets = {}
 
+        head,tail = splitext (File)
+        if tail.upper() == ".JSAP":
+            self.configuration = JSAPObject(File)
+        elif tail.upper() == ".YSAP":
+            self.configuration = YSAPObject(File)
+        else:
+            raise WrongFileException("Wrong file selected")
 
     # do HTTP request
     def unsecureRequest(self, reqURI, sparql, isQuery):
@@ -69,37 +71,28 @@ class ConnectionHandler:
 
         # debug
         self.logger.debug("=== ConnectionHandler::secureRequest invoked ===")
-
-        # check if jpar was given
-        if not self.jparHandler:
-            raise MissingJPARException
         
-        # if the client is not yet registered, then register!
-        if not self.jparHandler.client_secret:
-            self.register(registerURI)
-        
-        # if a token is not present, request it!
-        if not(self.jparHandler.jwt):
-            self.requestToken(tokenURI)
+        self.register(registerURI)
+        self.requestToken(tokenURI)
                 
         # perform the request
         self.logger.debug("Performing a secure SPARQL request")
         if isQuery:
             headers = {"Content-Type":"application/sparql-query", 
                        "Accept":"application/json",
-                       "Authorization": "Bearer " + self.jparHandler.jwt}
+                       "Authorization": "Bearer " + self.configuration.jwt}
             r = requests.post(reqURI, headers = headers, data = sparql, verify = False)        
             r.connection.close()
         else:
             headers = {"Content-Type":"application/sparql-update", 
                        "Accept":"application/json",
-                       "Authorization": "Bearer " + self.jparHandler.jwt}
+                       "Authorization": "Bearer " + self.configuration.jwt}
             r = requests.post(reqURI, headers = headers, data = sparql, verify = False)        
             r.connection.close()
             
         # check for errors on token validity
         if r.status_code == 401:
-            self.jparHandler.jwt = None                
+            self.configuration.jwt = None                
             raise TokenExpiredException
 
         # return
@@ -116,14 +109,10 @@ class ConnectionHandler:
 
         # debug print
         self.logger.debug("=== ConnectionHandler::register invoked ===")
-
-        # check if jpar was given
-        if not self.jparHandler:
-            raise MissingJPARException
         
         # define headers and payload
         headers = {"Content-Type":"application/json", "Accept":"application/json"}
-        payload = '{"client_identity":' + self.jparHandler.client_id + ', "grant_types":["client_credentials"]}'
+        payload = '{"client_identity":' + self.configuration.client_id + ', "grant_types":["client_credentials"]}'
 
         # perform the request
         r = requests.post(registerURI, headers = headers, data = payload, verify = False)        
@@ -135,10 +124,10 @@ class ConnectionHandler:
 
             # encode with base64 client_id and client_secret
             cred = base64.b64encode(bytes(jresponse["client_id"] + ":" + jresponse["client_secret"], "utf-8"))
-            self.jparHandler.client_secret = "Basic " + cred.decode("utf-8")
+            self.configuration.client_secret = "Basic " + cred.decode("utf-8")
             
-            # store data into the jpar file
-            self.jparHandler.storeConfig()
+            # store data into the jsap file
+            self.configuration.storeConfig()
 
         else:
             raise RegistrationFailedException()
@@ -155,22 +144,18 @@ class ConnectionHandler:
 
         # debug print
         self.logger.debug("=== ConnectionHandler::requestToken invoked ===")
-
-        # check if jpar was given
-        if not self.jparHandler:
-            raise MissingJPARException
         
         # define headers and payload        
         headers = {"Content-Type":"application/json", 
                    "Accept":"application/json",
-                   "Authorization": self.jparHandler.client_secret}    
+                   "Authorization": self.configuration.client_secret}    
 
         # perform the request
         r = requests.post(tokenURI, headers = headers, verify = False)        
         r.connection.close()
         if r.status_code == 201:
             jresponse = json.loads(r.text)
-            self.jparHandler.jwt = jresponse["access_token"]
+            self.configuration.jwt = jresponse["access_token"]
         else:
             raise TokenRequestFailedException()
 
@@ -287,17 +272,13 @@ class ConnectionHandler:
 
         # debug
         self.logger.debug("=== ConnectionHandler::openSecureWebsocket invoked ===")
-
-        # check if jpar was given
-        if not self.jparHandler:
-            raise MissingJPARException
         
         # if the client is not yet registered, then register!
-        if not self.jparHandler.client_secret:
+        if not self.configuration.client_secret:
             self.register(registerURI)
             
         # if a token is not present, request it!
-        if not(self.jparHandler.jwt):
+        if not(self.configuration.jwt):
             self.requestToken(tokenURI)
 
         # initialization
@@ -371,7 +352,7 @@ class ConnectionHandler:
             msg = {}
             msg["subscribe"] = sparql
             msg["alias"] = alias
-            msg["authorization"] = self.jparHandler.jwt
+            msg["authorization"] = self.configuration.jwt
 
             # send subscription request
             ws.send(json.dumps(msg))

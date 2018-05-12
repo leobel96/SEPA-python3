@@ -1,7 +1,10 @@
 #!/usr/bin/python3
 
+from os.path import splitext
 import json
 import logging
+from .JSAPObject import *
+from .YSAPObject import *
 from .Exceptions import *
 from .ConnectionHandler import *
 
@@ -28,15 +31,15 @@ class SEPAClient:
     """
 
     # constructor
-    def __init__(self, jparFile = None, logLevel = 40):
+    def __init__(self, File, logLevel = 40):
         
         """
         Constructor for the Low-level KP class
 
         Parameters
         ----------
-        jparFile : str
-            Name with relative/full path of the JPAR file used to exploit the security mechanism (default = None)
+        File : str
+            JSAP or YSAP file used for configuration
         logLevel : int
             The desired log level. Default = 40
 
@@ -52,21 +55,30 @@ class SEPAClient:
         self.subscriptions = {}
 
         # initialize handler
-        self.connectionManager = ConnectionHandler(jparFile, logLevel)
-
+        head,tail = splitext (File)
+        if tail.upper() == ".JSAP":
+            self.configuration = JSAPObject(File)
+            self.connectionManager = ConnectionHandler(File)
+        elif tail.upper() == ".YSAP":
+            self.configuration = YSAPObject(File)
+            self.connectionManager = ConnectionHandler(File)
+        else:
+            raise WrongFileException("Wrong file selected")
+        
+        
 
     # update
-    def update(self, updateURI, sparqlUpdate, secure = False, tokenURI = None, registerURI = None):
+    def update(self, updateName, forcedBindings = {}, secure = False, tokenURI = None, registerURI = None):
 
         """
         This method is used to perform a SPARQL update
 
         Parameters
         ----------
-        updateURI : str
-            The URI of the SEPA instances used for update requests
-        sparqlUpdate : str
+        updateName : str
             The SPARQL update to perform
+        forcedBindings : dict
+            The dictionary containing the bindings to fill the template
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
         tokenURI : str
@@ -87,7 +99,12 @@ class SEPAClient:
         self.logger.debug("=== KP::update invoked ===")
 
         # perform the update request
+        updateURI = self.configuration.updateURI
+        sparqlUpdate = self.configuration.getQuery(updateName, focedBindings)
+        
         if secure:
+            tokenURI = self.configuration.tokenReqURI
+            registerURI = self.configuration.registerURI
             status, results = self.connectionManager.secureRequest(updateURI, sparqlUpdate, False, tokenURI, registerURI)
         else:
             status, results = self.connectionManager.unsecureRequest(updateURI, sparqlUpdate, False)
@@ -100,17 +117,17 @@ class SEPAClient:
 
 
     # query
-    def query(self, queryURI, sparqlQuery, secure = False, tokenURI = None, registerURI = None):
+    def query(self, queryName, forcedBindings = {}, secure = False, tokenURI = None, registerURI = None):
     
         """
         This method is used to perform a SPARQL query
 
         Parameters
         ----------
-        queryURI : str
-            The URI of the SEPA instances used for query requests
-        sparqlQuery : str
-            The SPARQL query to perform
+        queryName : str
+            The friendly name of the SPARQL Query
+        forcedBindings : dict
+            The dictionary containing the bindings to fill the template
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
         tokenURI : str
@@ -131,6 +148,9 @@ class SEPAClient:
         self.logger.debug("=== KP::query invoked ===")
         
         # perform the query request
+        queryURI = self.configuration.queryURI
+        sparqlQuery = self.configuration.getQuery(queryName, forcedBindings)
+
         if secure:
             status, results = self.connectionManager.secureRequest(queryURI, sparqlQuery, True, tokenURI, registerURI)
         else:
@@ -148,16 +168,14 @@ class SEPAClient:
         
 
     # susbscribe
-    def subscribe(self, subscribeURI, sparql, alias, handler, secure = False, registerURI = None, tokenURI = None):
+    def subscribe(self, subscriptionName, alias, handler, secure = False, registerURI = None, tokenURI = None):
 
         """
         This method is used to start a SPARQL subscription
 
         Parameters
         ----------
-        subscribeURI : str
-            The URI of the SEPA instances used for update requests
-        sparql : str
+        subscriptionName : str
             The SPARQL subscription to request
         alias : str
             A friendly name for the subscription
@@ -181,16 +199,19 @@ class SEPAClient:
         self.logger.debug("=== KP::subscribe invoked ===")
       
         # start the subscription and return the ID
+        subscribeURI = self.configuration.subscribeURI
+        sparqlQuery = self.configuration.getQuery(subscriptionName, focedBindings)
+        
         subid = None
         if secure:
-            subid = self.connectionManager.openSecureWebsocket(subscribeURI, sparql, alias, handler, registerURI, tokenURI)
+            subid = self.connectionManager.openSecureWebsocket(subscribeURI, sparqlQuery, alias, handler, registerURI, tokenURI)
         else:
-            subid = self.connectionManager.openUnsecureWebsocket(subscribeURI, sparql, alias, handler)
+            subid = self.connectionManager.openUnsecureWebsocket(subscribeURI, sparqlQuery, alias, handler)
         return subid
         
     
     # unsubscribe
-    def unsubscribe(self, subid, secure):
+    def unsubscribe(self, subid, secure = False):
 
         """
         This method is used to start a SPARQL subscription

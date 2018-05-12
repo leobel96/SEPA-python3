@@ -133,17 +133,29 @@ class YSAPObject:
             self.wssPort = self.ysapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["port"]
             self.secureSubscribePath = self.ysapDict["sparql11seprotocol"]["availableProtocols"]["wss"]["path"]
             
-            security = self.ysapDict["sparql11seprotocol"]["security"]
-            self.secureHost = security.get("host", "")
-            self.securePort = security["port"]
-            self.registerPath = security["registration"]
-            self.tokenRequestPath = security["tokenRequest"]
-            self.securePath = security["securePath"]
-            self.client_id = security.get("client_id")
-            self.client_name = security.get("client_secret")
-            self.client_secret = security.get("client_id")
-            self.jwt = security.get("jwt")
-            self.expiry = security.get("expires")
+            security = self.ysapDict["sparql11seprotocol"].get("security")
+            if security is not None:
+                self.secureHost = security.get("host")
+                self.securePort = security.get("port")
+                self.registerPath = security.get("registration")
+                self.tokenRequestPath = security.get("tokenRequest")
+                self.securePath = security.get("securePath")
+                self.client_id = security.get("client_id")
+                self.client_name = security.get("client_secret")
+                self.client_secret = security.get("client_id")
+                self.jwt = security.get("jwt")
+                self.expiry = security.get("expires")
+            else:
+                self.secureHost = None
+                self.securePort = None
+                self.registerPath = None
+                self.tokenRequestPath = None
+                self.securePath = None
+                self.client_id = None
+                self.client_name = None
+                self.client_secret = None
+                self.jwt = None
+                self.expiry = None
             
         except KeyError as e:
             self.logger.error("Network configuration incomplete in YSAP file")
