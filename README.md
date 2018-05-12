@@ -26,8 +26,7 @@ from sepy.JSAPObject import *
 ```
 
 This library consists of 6 classes that can be used for different purposes:
-- JSAPObject: An handler class for JSAP files
-- YSAPObject: An handler class for YSAP files
+- configurationbject: An handler class for YSAP and JSAP files
 - SEPAClient: A low-level class used to develop a client for SEPA
 - ConnectionHandler: A class for connection handling
 
@@ -44,10 +43,10 @@ These APIs allows to develop a client for the SEPA platform using a simple inter
   A number indicating the desired log level. Default = 40
 The parameters are optional. They activate query, update, subscribe, unsubscribe methods.
 
-### Creating a SEPAClient
+### Example with the mqtt.yaml file
 
 ```python
-sc = SEPAClient(File) # A JSAP or YSAP file
+sc = SEPAClient("mqtt.yaml") # A JSAP or YSAP file
 ```
 
 ### Query and Update
@@ -69,9 +68,11 @@ These two methods (`query` and `update`) return a boolean indicating the request
 Refering to the previous example:
 
 ```python
-forcedBindings{"binding1" : "value1", "binding2" : "value2"}
+queryName = "MQTT_TOPICS"
 simple_query = sc.query(queryName, {})
-simple_update = sc.query(queryName, forcedBindings)
+updateName = "MQTT_MESSAGE"
+forcedBindings = {"topic":"top2", "broker":"brok2", "value":"val2"}
+simple_update = sc.query(updateName, forcedBindings)
 ```
 
 ### Subscribe and Unsubscribe
@@ -92,7 +93,9 @@ python -m pydoc sepy.YSAPObject
 
 ## Foreseen changes
 
-- [ ] Update tests and 
+- [ ] Update tests
+- [ ] Correct subscribe problems
+- [ ] Correct secure requests
 - [x] Modify YSAPObject and JSAPObject classes in order to automatically add prefixes to queries/updates
 - [ ] Add possibility to install the library using pip
 
