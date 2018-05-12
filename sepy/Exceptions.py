@@ -11,6 +11,7 @@ class TokenRequestFailedException(Exception):
 
 class JSAPParsingException(Exception):
     pass
+
 class YSAPParsingException(Exception):
     pass
 
