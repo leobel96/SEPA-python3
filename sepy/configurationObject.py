@@ -150,23 +150,14 @@ class ConfigurationObject:
             self.wssPort = self.configurationDict["sparql11seprotocol"]["availableProtocols"]["wss"]["port"]
             self.secureSubscribePath = self.configurationDict["sparql11seprotocol"]["availableProtocols"]["wss"]["path"]
             
-            security = self.configurationDict["sparql11seprotocol"].get("security")
-            if security is not None:
-                self.secureHost = security.get("host")
-                self.securePort = security.get("port")
-                self.registerPath = security.get("registration")
-                self.tokenRequestPath = security.get("tokenRequest")
-                self.securePath = security.get("securePath")
-                self.client_id = security.get("client_id")
-                self.expiry = security.get("expires")
-            else:
-                self.secureHost = None
-                self.securePort = None
-                self.registerPath = None
-                self.tokenRequestPath = None
-                self.securePath = None
-                self.client_id = None
-                self.expiry = None
+            security = self.configurationDict["sparql11seprotocol"]["security"]
+            self.secureHost = security.get("host")
+            self.securePort = security["port"]
+            self.registerPath = security["registration"]
+            self.tokenRequestPath = security["tokenRequest"]
+            self.securePath = security["securePath"]
+            self.client_id = security.get("client_id")
+            self.expiry = security.get("expires")
             
         except KeyError as e:
             self.logger.error("Network configuration incomplete in file file")
