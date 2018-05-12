@@ -103,6 +103,9 @@ class ConnectionHandler:
         # debug print
         self.logger.debug("=== ConnectionHandler::register invoked ===")
         
+        # obtain client_id
+        self.configuration.getClientID()
+        
         # define headers and payload
         headers = {"Content-Type":"application/json", "Accept":"application/json"}
         payload = '{"client_identity":' + self.configuration.client_id + ', "grant_types":["client_credentials"]}'
@@ -148,7 +151,7 @@ class ConnectionHandler:
         r.connection.close()
         if r.status_code == 201:
             jresponse = json.loads(r.text)
-            self.configuration.jwt = jresponse["access_token"]
+            self.configuration.jwt = jresponse["access_token"] #maybe jresponse["token"]["access_token"] ?
         else:
             raise TokenRequestFailedException()
 
@@ -271,7 +274,7 @@ class ConnectionHandler:
             self.register(registerURI)
             
         # if a token is not present, request it!
-        if not(self.configuration.jwt):
+        if not self.configuration.jwt:
             self.requestToken(tokenURI)
 
         # initialization

@@ -5,6 +5,7 @@ import yaml
 import json
 import logging
 from os.path import splitext
+from uuid import getnode as get_mac
 
 from .Exceptions import *
 
@@ -156,7 +157,6 @@ class ConfigurationObject:
             self.registerPath = security["registration"]
             self.tokenRequestPath = security["tokenRequest"]
             self.securePath = security["securePath"]
-            self.client_id = security.get("client_id")
             self.expiry = security.get("expires")
             
         except KeyError as e:
@@ -364,7 +364,13 @@ class ConfigurationObject:
         # return
         return self.nsSparql + configurationSparql
         
-                
+    def getClientID(self):
+        
+        """Method used to obtain unique client ID from MAC"""
+        
+        self.client_id = str(get_mac())
+
+        
         
     # store config
     def storeConfig(self):
