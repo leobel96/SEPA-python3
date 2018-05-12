@@ -100,7 +100,7 @@ class SEPAClient:
 
         # perform the update request
         updateURI = self.configuration.updateURI
-        sparqlUpdate = self.configuration.getQuery(updateName, focedBindings)
+        sparqlUpdate = self.configuration.getUpdate(updateName, focedBindings)
         
         if secure:
             tokenURI = self.configuration.tokenReqURI
