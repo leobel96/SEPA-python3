@@ -142,8 +142,7 @@ class JSAPObject:
                 self.tokenRequestPath = security.get("tokenRequest")
                 self.securePath = security.get("securePath")
                 self.client_id = security.get("client_id")
-                self.client_name = security.get("client_secret")
-                self.client_secret = security.get("client_id")
+                self.client_secret = security.get("client_secret")
                 self.jwt = security.get("jwt")
                 self.expiry = security.get("expires")
             else:
@@ -153,7 +152,6 @@ class JSAPObject:
                 self.tokenRequestPath = None
                 self.securePath = None
                 self.client_id = None
-                self.client_name = None
                 self.client_secret = None
                 self.jwt = None
                 self.expiry = None
@@ -161,10 +159,7 @@ class JSAPObject:
         except KeyError as e:
             self.logger.error("Network configuration incomplete in JSAP file")
             raise JSAPParsingException("Network configuration incomplete in JSAP file")
-            
-        # initialize user data
-        
-            
+               
         # define attributes for unsecure connection
         self.subscribeURI = "ws://%s:%s%s" % (self.host, self.wsPort, self.unsecureSubscribePath)
         self.updateURI = "http://%s:%s%s" % (self.host, self.port, self.updatePath)
@@ -354,57 +349,3 @@ class JSAPObject:
         # return
         return self.nsSparql + jsapSparql
      
-     
-    # read client_id
-    def readClientId(self):
-        
-        """Retrieves the client id form file, if present"""
-        
-        try:
-            self.client_id = self.jsapDict["client_id"]
-        except KeyError:
-            pass
-
-
-    # read client_id
-    def readClientName(self):
-        
-        """Retrieves the client id form file, if present"""
-        
-        try:
-            self.client_name = self.jsapDict["client_name"]
-        except KeyError:
-            pass
-
-
-    # read client_secret
-    def readClientSecret(self):
-        
-        """Retrieves the client secret form file, if present"""
-        
-        try:
-            self.client_secret = self.jsapDict["client_secret"]
-        except KeyError:
-            pass
-
-
-    # read token
-    def readToken(self):
-        
-        """Retrieves the token form file, if present"""
-        
-        try:
-            self.jwt = self.jsapDict["jwt"]
-        except KeyError:
-            pass
-
-
-    # store config
-    def storeConfig(self):
-
-        """Method used to update the content of the JSAP file"""
-
-        # store data into file
-        with open(self.jsapFile, "w") as jsapFileStream:
-            json.dump(self.jparDict, jsapFileStream, indent=4)
-            jsapFileStream.truncate()
