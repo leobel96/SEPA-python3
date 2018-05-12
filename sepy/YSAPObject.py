@@ -356,27 +356,3 @@ class YSAPObject:
             json.dump(self.jparDict, ysapFileStream, indent=4)
             ysapFileStream.truncate()
     
-    
-    
-    def getNamespace(self, ns):
-
-        """
-        Returns a namespace, given its prefix.
-
-        Parameters
-        ----------
-        ns : str
-            The prefix bound to the namespace
-
-        Returns
-        -------
-        str
-            The namespace bound to that prefix
-
-        """
-
-        self.logger.debug("Retrieving namespace for prefix %s" % ns)
-        try:
-            return self.namespaces[ns]
-        except KeyError:
-            raise YSAPParsingException("Namespace not found!")
