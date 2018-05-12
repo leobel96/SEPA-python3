@@ -3,8 +3,7 @@
 from os.path import splitext
 import json
 import logging
-from .JSAPObject import *
-from .YSAPObject import *
+from .configurationObject import *
 from .Exceptions import *
 from .ConnectionHandler import *
 
@@ -55,20 +54,12 @@ class SEPAClient:
         self.subscriptions = {}
 
         # initialize handler
-        head,tail = splitext (File)
-        if tail.upper() == ".JSAP":
-            self.configuration = JSAPObject(File)
-            self.connectionManager = ConnectionHandler(File)
-        elif tail.upper() == ".YSAP":
-            self.configuration = YSAPObject(File)
-            self.connectionManager = ConnectionHandler(File)
-        else:
-            raise WrongFileException("Wrong file selected")
-        
+        self.configuration = configurationObject(File)
+        self.connectionManager = ConnectionHandler(File)        
         
 
     # update
-    def update(self, updateName, forcedBindings = {}, secure = False, tokenURI = None, registerURI = None):
+    def update(self, updateName, forcedBindings = {}, secure = False):
 
         """
         This method is used to perform a SPARQL update
@@ -81,10 +72,6 @@ class SEPAClient:
             The dictionary containing the bindings to fill the template
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
-        tokenURI : str
-            The URI to request token if using a secure connection (default = None)
-        registerURI : str
-            The URI to register if using a secure connection (default = None)
 
         Returns
         -------
@@ -100,7 +87,7 @@ class SEPAClient:
 
         # perform the update request
         updateURI = self.configuration.updateURI
-        sparqlUpdate = self.configuration.getUpdate(updateName, focedBindings)
+        sparqlUpdate = self.configuration.getUpdate(updateName, forcedBindings)
         
         if secure:
             tokenURI = self.configuration.tokenReqURI
@@ -117,7 +104,7 @@ class SEPAClient:
 
 
     # query
-    def query(self, queryName, forcedBindings = {}, secure = False, tokenURI = None, registerURI = None):
+    def query(self, queryName, forcedBindings = {}, secure = False):
     
         """
         This method is used to perform a SPARQL query
@@ -130,10 +117,6 @@ class SEPAClient:
             The dictionary containing the bindings to fill the template
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
-        tokenURI : str
-            The URI to request token if using a secure connection (default = None)
-        registerURI : str
-            The URI to register if using a secure connection (default = None)
 
         Returns
         -------
@@ -152,6 +135,10 @@ class SEPAClient:
         sparqlQuery = self.configuration.getQuery(queryName, forcedBindings)
 
         if secure:
+            # take register URI from configuration file
+            registerURI = self.configuration.registerURI
+            # take token request URI from configuration file
+            tokenURI = self.configuration.tokenReqURI
             status, results = self.connectionManager.secureRequest(queryURI, sparqlQuery, True, tokenURI, registerURI)
         else:
             status, results = self.connectionManager.unsecureRequest(queryURI, sparqlQuery, True)
@@ -168,7 +155,7 @@ class SEPAClient:
         
 
     # susbscribe
-    def subscribe(self, subscriptionName, alias, handler, secure = False, registerURI = None, tokenURI = None):
+    def subscribe(self, subscriptionName, alias, handler, secure = False):
 
         """
         This method is used to start a SPARQL subscription
@@ -183,10 +170,6 @@ class SEPAClient:
             A class to handle notifications
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
-        tokenURI : str
-            The URI to request token if using a secure connection (default = None)
-        registerURI : str
-            The URI to register if using a secure connection (default = None)
 
         Returns
         -------
@@ -199,13 +182,16 @@ class SEPAClient:
         self.logger.debug("=== KP::subscribe invoked ===")
       
         # start the subscription and return the ID
-        subscribeURI = self.configuration.subscribeURI
-        sparqlQuery = self.configuration.getQuery(subscriptionName, focedBindings)
-        
+        sparqlQuery = self.configuration.getQuery(subscriptionName, forcedBindings = {})
+  
         subid = None
         if secure:
+            subscribeURI = self.configuration.secureSubscribeURI
+            registerURI = self.configuration.registerURI
+            tokenURI = self.configuration.tokenReqURI
             subid = self.connectionManager.openSecureWebsocket(subscribeURI, sparqlQuery, alias, handler, registerURI, tokenURI)
         else:
+            subscribeURI = self.configuration.subscribeURI
             subid = self.connectionManager.openUnsecureWebsocket(subscribeURI, sparqlQuery, alias, handler)
         return subid
         

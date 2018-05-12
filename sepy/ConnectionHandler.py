@@ -11,12 +11,10 @@ import time
 import json
 import sys
 import ssl
-from os.path import splitext
 
 # local requirements
 from .Exceptions import *
-from .JSAPObject import *
-from .YSAPObject import *
+from .configurationObject import *
 
 # class ConnectionHandler
 class ConnectionHandler:
@@ -37,14 +35,9 @@ class ConnectionHandler:
             
         # open subscriptions
         self.websockets = {}
-
-        head,tail = splitext (File)
-        if tail.upper() == ".JSAP":
-            self.configuration = JSAPObject(File)
-        elif tail.upper() == ".YSAP":
-            self.configuration = YSAPObject(File)
-        else:
-            raise WrongFileException("Wrong file selected")
+        
+        # parse file
+        self.configuration = configurationObject(File)
 
     # do HTTP request
     def unsecureRequest(self, reqURI, sparql, isQuery):
@@ -67,7 +60,7 @@ class ConnectionHandler:
 
 
     # do HTTPS request
-    def secureRequest(self, reqURI, sparql, isQuery, registerURI, tokenURI):
+    def secureRequest(self, reqURI, sparql, isQuery, tokenURI, registerURI):
 
         # debug
         self.logger.debug("=== ConnectionHandler::secureRequest invoked ===")
@@ -113,7 +106,7 @@ class ConnectionHandler:
         # define headers and payload
         headers = {"Content-Type":"application/json", "Accept":"application/json"}
         payload = '{"client_identity":' + self.configuration.client_id + ', "grant_types":["client_credentials"]}'
-
+        
         # perform the request
         r = requests.post(registerURI, headers = headers, data = payload, verify = False)        
         r.connection.close()
@@ -126,7 +119,7 @@ class ConnectionHandler:
             cred = base64.b64encode(bytes(jresponse["client_id"] + ":" + jresponse["client_secret"], "utf-8"))
             self.configuration.client_secret = "Basic " + cred.decode("utf-8")
             
-            # store data into the jsap file
+            # store data into the configuration file
             self.configuration.storeConfig()
 
         else:
@@ -149,7 +142,7 @@ class ConnectionHandler:
         headers = {"Content-Type":"application/json", 
                    "Accept":"application/json",
                    "Authorization": self.configuration.client_secret}    
-
+        
         # perform the request
         r = requests.post(tokenURI, headers = headers, verify = False)        
         r.connection.close()

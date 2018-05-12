@@ -18,4 +18,5 @@ class YSAPParsingException(Exception):
 class WrongFileException(Exception):
     pass
 
-
+class configurationParsingException(Exception):
+    pass
