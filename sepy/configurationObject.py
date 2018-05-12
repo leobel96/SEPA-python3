@@ -8,7 +8,7 @@ from os.path import splitext
 
 from .Exceptions import *
 
-class configurationObject:
+class ConfigurationObject:
 
     """
     A class to handle JSAP and YSAP files
@@ -26,7 +26,7 @@ class configurationObject:
         The full dictionary with the file content
     host : str
         The hostname of the SEPA instance
-    unsecureHost: str
+    queryHost: str
         Optional value, it will be used in future
     protocol : str
         Protocol to be used for queries
@@ -37,9 +37,9 @@ class configurationObject:
     updatePath : str
         The path to the update resource of the SEPA instance   
         
-    SEhost: str
+    subscribeHost: str
         Optional value, it will be used in future    
-    SEProtocol : str
+    subscribeProtocol : str
         In future SEPA will understand what protocol should be used
     wsPort : int
         The port number for unsecure Websocket connection
@@ -137,14 +137,14 @@ class configurationObject:
         # try to read the network configuration
         try:
             self.host = self.configurationDict["host"]
-            self.unsecureHost = self.configurationDict["sparql11protocol"].get("host","")
+            self.queryHost = self.configurationDict["sparql11protocol"].get("host")
             self.protocol = self.configurationDict["sparql11protocol"]["protocol"]
             self.port = self.configurationDict["sparql11protocol"]["port"]
             self.queryPath = self.configurationDict["sparql11protocol"]["query"]["path"]
             self.updatePath = self.configurationDict["sparql11protocol"]["update"]["path"]
             
-            self.SEhost = self.configurationDict["sparql11seprotocol"].get("host","")
-            self.SEProtocol = self.configurationDict["sparql11seprotocol"]["protocol"]
+            self.subscribeHost = self.configurationDict["sparql11seprotocol"].get("host")
+            self.subscribeProtocol = self.configurationDict["sparql11seprotocol"]["protocol"]
             self.wsPort = self.configurationDict["sparql11seprotocol"]["availableProtocols"]["ws"]["port"]
             self.unsecureSubscribePath = self.configurationDict["sparql11seprotocol"]["availableProtocols"]["ws"]["path"]
             self.wssPort = self.configurationDict["sparql11seprotocol"]["availableProtocols"]["wss"]["port"]
@@ -171,20 +171,35 @@ class configurationObject:
         except KeyError as e:
             self.logger.error("Network configuration incomplete in file file")
             raise configurationParsingException("Network configuration incomplete in configuration file")
+        
+        if self.subscribeHost is None:
+            subscribeHost = self.host
+        else:
+            subscribeHost = self.subscribeHost
+        
+        if self.queryHost is None:
+            queryHost = self.host
+        else:
+            queryHost = self.queryHost
+            
+        if self.secureHost is None:
+            secureHost = self.host
+        else:
+            secureHost = self.secureHost
             
         # define attributes for unsecure connection
-        self.subscribeURI = "ws://%s:%s%s" % (self.host, self.wsPort, self.unsecureSubscribePath)
-        self.updateURI = "http://%s:%s%s" % (self.host, self.port, self.updatePath)
-        self.queryURI = "http://%s:%s%s" % (self.host, self.port, self.queryPath)
+        self.subscribeURI = "ws://%s:%s%s" % (subscribeHost, self.wsPort, self.unsecureSubscribePath)
+        self.updateURI = "http://%s:%s%s" % (queryHost, self.port, self.updatePath)
+        self.queryURI = "http://%s:%s%s" % (queryHost, self.port, self.queryPath)
         
         # define attributes for secure connection
-        self.secureSubscribeURI = "wss://%s:%s%s%s" % (self.host, self.wssPort, self.securePath, self.secureSubscribePath)
-        self.secureUpdateURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.updatePath)
-        self.secureQueryURI = "https://%s:%s%s%s" % (self.host, self.securePort, self.securePath, self.queryPath)
+        self.secureSubscribeURI = "wss://%s:%s%s%s" % (subscribeHost, self.wssPort, self.securePath, self.secureSubscribePath)
+        self.secureUpdateURI = "https://%s:%s%s%s" % (queryHost, self.securePort, self.securePath, self.updatePath)
+        self.secureQueryURI = "https://%s:%s%s%s" % (queryHost, self.securePort, self.securePath, self.queryPath)
 
         # define attributes for registration and token request
-        self.tokenReqURI = "https://%s:%s%s" % (self.host, self.securePort, self.tokenRequestPath)
-        self.registerURI = "https://%s:%s%s" % (self.host, self.securePort, self.registerPath)
+        self.tokenReqURI = "https://%s:%s%s" % (secureHost, self.securePort, self.tokenRequestPath)
+        self.registerURI = "https://%s:%s%s" % (secureHost, self.securePort, self.registerPath)
 
         # read namespaces
         self.namespaces = {}

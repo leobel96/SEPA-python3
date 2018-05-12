@@ -3,7 +3,7 @@
 from os.path import splitext
 import json
 import logging
-from .configurationObject import *
+from .ConfigurationObject import *
 from .Exceptions import *
 from .ConnectionHandler import *
 
@@ -54,7 +54,7 @@ class SEPAClient:
         self.subscriptions = {}
 
         # initialize handler
-        self.configuration = configurationObject(File)
+        self.configuration = ConfigurationObject(File)
         self.connectionManager = ConnectionHandler(File)        
         
 

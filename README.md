@@ -19,16 +19,18 @@ To use the classes you have to import them in this way:
 from sepy.<the class you want to import> import *
 ```
 
-For example, if you want to import the JSAPObject (used to handle JSAP files) you have to write:
+For example, if you want to import the ConfigurationObject (used to handle JSAP and YSAP files) you have to write:
 
 ```python
-from sepy.JSAPObject import *
+from sepy.ConfigurationObject import *
 ```
 
-This library consists of 6 classes that can be used for different purposes:
-- configurationbject: An handler class for YSAP and JSAP files
+This library consists of 5 classes that can be used for different purposes:
+- Configurationbject: An handler class for YSAP and JSAP files
 - SEPAClient: A low-level class used to develop a client for SEPA
 - ConnectionHandler: A class for connection handling
+- BasicHandler: A simple example of an Handler class
+- Exceptions: Used to handle exceptions
 
 Let's talk about some classes deeply:
 
@@ -60,10 +62,6 @@ These two methods (`query` and `update`) return a boolean indicating the request
   A dictionary for in-request name replacements; by default it is empty
 - secure :
   A boolean specifying whether security mechanisms should be used or not; by default it is set as unsecure
-- tokenURI :
-  A string indicating the URI for the token request; can be omitted
-- registerURI :
-  A string indicating the URI for the registration request; can be omitted
   
 Refering to the previous example:
 

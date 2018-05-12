@@ -14,7 +14,7 @@ import ssl
 
 # local requirements
 from .Exceptions import *
-from .configurationObject import *
+from .ConfigurationObject import *
 
 # class ConnectionHandler
 class ConnectionHandler:
@@ -37,7 +37,7 @@ class ConnectionHandler:
         self.websockets = {}
         
         # parse file
-        self.configuration = configurationObject(File)
+        self.configuration = ConfigurationObject(File)
 
     # do HTTP request
     def unsecureRequest(self, reqURI, sparql, isQuery):
