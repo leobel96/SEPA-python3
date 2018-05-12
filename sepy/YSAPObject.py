@@ -141,8 +141,7 @@ class YSAPObject:
                 self.tokenRequestPath = security.get("tokenRequest")
                 self.securePath = security.get("securePath")
                 self.client_id = security.get("client_id")
-                self.client_name = security.get("client_secret")
-                self.client_secret = security.get("client_id")
+                self.client_secret = security.get("client_secret")
                 self.jwt = security.get("jwt")
                 self.expiry = security.get("expires")
             else:
@@ -152,7 +151,6 @@ class YSAPObject:
                 self.tokenRequestPath = None
                 self.securePath = None
                 self.client_id = None
-                self.client_name = None
                 self.client_secret = None
                 self.jwt = None
                 self.expiry = None
@@ -160,9 +158,6 @@ class YSAPObject:
         except KeyError as e:
             self.logger.error("Network configuration incomplete in YSAP file")
             raise YSAPParsingException("Network configuration incomplete in YSAP file")
-            
-        # initialize user data
-        
             
         # define attributes for unsecure connection
         self.subscribeURI = "ws://%s:%s%s" % (self.host, self.wsPort, self.unsecureSubscribePath)
@@ -349,49 +344,6 @@ class YSAPObject:
 
         # return
         return self.nsSparql + ysapSparql
-
-    # read client_id
-    def readClientId(self):
-        
-        """Retrieves the client id form file, if present"""
-        
-        try:
-            self.client_id = self.ysapDict["client_id"]
-        except KeyError:
-            pass
-
-
-    # read client_id
-    def readClientName(self):
-        
-        """Retrieves the client id form file, if present"""
-        
-        try:
-            self.client_name = self.ysapDict["client_name"]
-        except KeyError:
-            pass
-
-
-    # read client_secret
-    def readClientSecret(self):
-        
-        """Retrieves the client secret form file, if present"""
-        
-        try:
-            self.client_secret = self.ysapDict["client_secret"]
-        except KeyError:
-            pass
-
-
-    # read token
-    def readToken(self):
-        
-        """Retrieves the token form file, if present"""
-        
-        try:
-            self.jwt = self.ysapDict["jwt"]
-        except KeyError:
-            pass
 
 
     # store config
