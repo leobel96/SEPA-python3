@@ -13,8 +13,6 @@ and
 
 (this one as root).
 
-Future plans: add possibility to install the library using pip.
-
 To use the classes you have to import them in this way:
 
 ```
@@ -92,6 +90,8 @@ python -m pydoc sepy.YSAPObject
 
 ## Foreseen changes
 
-I will update tests and I will modify YSAPObject class in order to automatically add prefixes to queries/updates!
+- [ ] Update tests and 
+- [x] Modify YSAPObject and JSAPObject classes in order to automatically add prefixes to queries/updates
+- [ ] Add possibility to install the library using pip
 
 Stay Tuned!
