@@ -157,7 +157,6 @@ class ConfigurationObject:
             self.registerPath = security["registration"]
             self.tokenRequestPath = security["tokenRequest"]
             self.securePath = security["securePath"]
-            self.expiry = security.get("expires")
             
         except KeyError as e:
             self.logger.error("Network configuration incomplete in file file")
@@ -363,26 +362,4 @@ class ConfigurationObject:
 
         # return
         return self.nsSparql + configurationSparql
-        
-    def getClientID(self):
-        
-        """Method used to obtain unique client ID from MAC"""
-        
-        self.client_id = str(get_mac())
-
-        
-        
-    # store config
-    def storeConfig(self):
-
-        """Method used to update the content of the configuration file"""
-
-        # store data into file
-        if self.configurationExtension == ".YSAP":
-            with open(self.configurationFile, "w") as ysapFileStream:
-                yaml.dump(self.ysapDict, ysapFileStream)
-                ysapFileStream.truncate()
-        else:
-            with open(self.configurationFile, "w") as jsapFileStream:
-                json.dump(self.configurationDict, jsapFileStream, indent=4)
-                jsapFileStream.truncate()
+                

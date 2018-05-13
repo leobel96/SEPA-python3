@@ -15,6 +15,9 @@ class JSAPParsingException(Exception):
 class YSAPParsingException(Exception):
     pass
 
+class YSKParsingException(Exception):
+    pass
+    
 class WrongFileException(Exception):
     pass
 

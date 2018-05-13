@@ -11,6 +11,7 @@ import time
 import json
 import sys
 import ssl
+import yaml
 
 # local requirements
 from .Exceptions import *
@@ -22,7 +23,7 @@ class ConnectionHandler:
     """This is the ConnectionHandler class"""
 
     # constructor
-    def __init__(self, File, logLevel = 10):
+    def __init__(self, logLevel = 10):
         
         """Constructor of the ConnectionHandler class"""
 
@@ -36,8 +37,15 @@ class ConnectionHandler:
         # open subscriptions
         self.websockets = {}
         
-        # parse file
-        self.configuration = ConfigurationObject(File)
+        # initialize client credentials
+        self.yskDict = None
+        self.filename = None
+        self.client_id = None
+        self.client_secret = None
+        self.jwt = None
+        self.expires = None
+        self.type = None
+        
 
     # do HTTP request
     def unsecureRequest(self, reqURI, sparql, isQuery):
@@ -60,32 +68,38 @@ class ConnectionHandler:
 
 
     # do HTTPS request
-    def secureRequest(self, reqURI, sparql, isQuery, tokenURI, registerURI):
+    def secureRequest(self, reqURI, sparql, isQuery, tokenURI, registerURI, File):
 
         # debug
         self.logger.debug("=== ConnectionHandler::secureRequest invoked ===")
         
-        self.register(registerURI)
-        self.requestToken(tokenURI)
-                
+        yskHandler(File)
+        
+        if self.client_secret is None:
+            self.register(registerURI)
+        if self.jwt is None:
+            self.requestToken(tokenURI)
+                        
         # perform the request
         self.logger.debug("Performing a secure SPARQL request")
         if isQuery:
             headers = {"Content-Type":"application/sparql-query", 
                        "Accept":"application/json",
-                       "Authorization": "Bearer " + self.configuration.jwt}
+                       "Authorization": "Bearer " + self.jwt}
             r = requests.post(reqURI, headers = headers, data = sparql, verify = False)        
             r.connection.close()
         else:
             headers = {"Content-Type":"application/sparql-update", 
                        "Accept":"application/json",
-                       "Authorization": "Bearer " + self.configuration.jwt}
+                       "Authorization": "Bearer " + self.jwt}
             r = requests.post(reqURI, headers = headers, data = sparql, verify = False)        
             r.connection.close()
             
         # check for errors on token validity
         if r.status_code == 401:
-            self.configuration.jwt = None                
+            self.jwt = None
+            self.yskDict["jwt"] = self.jwt
+            self.storeConfig()
             raise TokenExpiredException
 
         # return
@@ -104,11 +118,11 @@ class ConnectionHandler:
         self.logger.debug("=== ConnectionHandler::register invoked ===")
         
         # obtain client_id
-        self.configuration.getClientID()
+        self.getClientID()
         
         # define headers and payload
         headers = {"Content-Type":"application/json", "Accept":"application/json"}
-        payload = '{"client_identity":' + self.configuration.client_id + ', "grant_types":["client_credentials"]}'
+        payload = '{"client_identity":' + self.client_id + ', "grant_types":["client_credentials"]}'
         
         # perform the request
         r = requests.post(registerURI, headers = headers, data = payload, verify = False)        
@@ -120,15 +134,15 @@ class ConnectionHandler:
 
             # encode with base64 client_id and client_secret
             cred = base64.b64encode(bytes(jresponse["client_id"] + ":" + jresponse["client_secret"], "utf-8"))
-            self.configuration.client_secret = "Basic " + cred.decode("utf-8")
+            self.client_secret = "Basic " + cred.decode("utf-8")
+            self.yskDict["client_secret"] = self.client_secret
             
             # store data into the configuration file
-            self.configuration.storeConfig()
+            self.storeConfig()
 
         else:
             raise RegistrationFailedException()
-
-
+        
     ###################################################
     #
     # token request
@@ -144,14 +158,19 @@ class ConnectionHandler:
         # define headers and payload        
         headers = {"Content-Type":"application/json", 
                    "Accept":"application/json",
-                   "Authorization": self.configuration.client_secret}    
+                   "Authorization": self.client_secret}    
         
         # perform the request
         r = requests.post(tokenURI, headers = headers, verify = False)        
         r.connection.close()
+
         if r.status_code == 201:
             jresponse = json.loads(r.text)
-            self.configuration.jwt = jresponse["access_token"] #maybe jresponse["token"]["access_token"] ?
+            self.jwt = jresponse["token"]["access_token"]
+            self.yskDict["jwt"] = self.jwt
+            
+            # store data into the configuration file
+            self.configuration.storeConfig()
         else:
             raise TokenRequestFailedException()
 
@@ -163,14 +182,27 @@ class ConnectionHandler:
     ###################################################
 
     # do open websocket
-    def openUnsecureWebsocket(self, subscribeURI, sparql, alias, handler):                         
+    def openWebsocket(self, subscribeURI, sparql, alias = None, handler = None, registerURI = None, tokenURI = None, yskFile = None):                         
 
         # debug
-        self.logger.debug("=== ConnectionHandler::openUnsecureWebsocket invoked ===")
+        self.logger.debug("=== ConnectionHandler::openWebsocket invoked ===")
 
+        if registerURI is not None and tokenURI is not None:    # Secure request 
+            secure = True
+        else:
+            secure = False
+                
+        if secure:
+            yskHandler(yskFile)
+            if self.client_secret is None:
+                self.register(registerURI)
+            if self.jwt is None:
+                self.requestToken(tokenURI)
+        
+        
         # initialization
         handler = handler
-        subid = None
+        spuid = None
 
         # on_message callback
         def on_message(ws, message):
@@ -181,39 +213,44 @@ class ConnectionHandler:
 
             # process message
             jmessage = json.loads(message)
-            if "subscribed" in jmessage:
-
-                # get the subid
-                nonlocal subid
-                subid = jmessage["subscribed"]
-                self.logger.debug("SUBID = " + subid)
-
-                # save the subscription id and the thread
-                self.websockets[subid] = ws
-
-                # invoke the handler
-                added = jmessage["firstResults"]["results"]["bindings"]
-                handler.handle(added, [])
-
-            elif "ping" in jmessage:                
-                pass # we ignore ping
+                
+            
+            if "notification" in jmessage:
+                
+                nonlocal spuid
+                sequence = jmessage["notification"]["sequence"]
+                spuid = jmessage["notification"]["spuid"]
+                if sequence == "0":     # just subscribed
+                    self.logger.log("Subscribed to spuid: " + spuid)
+                    self.websockets[spuid] = ws     # save the subscription id and the thread
+                elif handler is not None:
+                    added = jmessage["notification"]["addedResults"]
+                    removed = jmessage["results"]["removedResults"]
+                    handler.handle(added, removed)
+                    self.logger.debug("Added bindings: {}".format(added))
+                    self.logger.debug("Removed bindings: {}".format(removed))
+                    
+            elif "error" in jmessage:                
+                
+                handler.handleError(jmessage)
+                
+            elif "unsubscribed" in jmessage:
+                
+                uspuid = jmessage["unsubscribed"]["spuid"]
+                self.logger.log("Unsubscribed from spuid: " + uspuid)
+                
             else:
-                # parsing jmessage
-                added = jmessage["results"]["addedresults"]["bindings"]
-                removed = jmessage["results"]["removedresults"]["bindings"]
-                # debug print
-                self.logger.debug("Added bindings: {}".format(added))
-                self.logger.debug("Removed bindings: {}".format(removed))
 
-                # invoke the handler
-                handler.handle(added,removed)
+                self.logger.error("Unknown message received: " + jmessage)
 
 
         # on_error callback
         def on_error(ws, error):
 
-            # debug
             self.logger.debug("=== ConnectionHandler::on_error invoked ===")
+            self.logger.error("Error:" + error)
+            if handler is not None:
+                handler.handleError(error)
 
 
         # on_close callback
@@ -224,7 +261,7 @@ class ConnectionHandler:
 
             # destroy the websocket dictionary
             try:
-                del self.websockets[subid]
+                del self.websockets[spuid]
             except:
                 pass
 
@@ -237,8 +274,11 @@ class ConnectionHandler:
 
             # composing message
             msg = {}
-            msg["subscribe"] = sparql
-            msg["alias"] = alias
+            msg["subscribe"]["sparql"] = sparql
+            if alias is not None:
+                msg["subscribe"]["alias"] = alias
+            if secure:
+                msg["subscribe"]["authorization"] = self.jwt
 
             # send subscription request
             ws.send(json.dumps(msg))
@@ -257,29 +297,34 @@ class ConnectionHandler:
         wst.start()
 
         # return
-        while not subid:
+        while not spuid:
             self.logger.debug("Waiting for subscription ID")
             time.sleep(0.1)            
-        return subid
+        return spuid
 
-    
-    # do open websocket
-    def openSecureWebsocket(self, subscribeURI, sparql, alias, handler, registerURI, tokenURI):                         
+
+
+    def closeWebsocket(self, spuid, authorization = None):
 
         # debug
-        self.logger.debug("=== ConnectionHandler::openSecureWebsocket invoked ===")
-        
-        # if the client is not yet registered, then register!
-        if not self.configuration.client_secret:
-            self.register(registerURI)
-            
-        # if a token is not present, request it!
-        if not self.configuration.jwt:
-            self.requestToken(tokenURI)
+        self.logger.debug("=== ConnectionHandler::closeWebsocket invoked ===")
 
+        if registerURI is not None and tokenURI is not None:    # Secure request 
+            secure = True
+        else:
+            secure = False
+                
+        if secure:
+            yskHandler(yskFile)
+            if self.client_secret is None:
+                self.register(registerURI)
+            if self.jwt is None:
+                self.requestToken(tokenURI)
+        
+        
         # initialization
         handler = handler
-        subid = None
+        spuid = None
 
         # on_message callback
         def on_message(ws, message):
@@ -290,39 +335,44 @@ class ConnectionHandler:
 
             # process message
             jmessage = json.loads(message)
-            if "subscribed" in jmessage:
-
-                # get the subid
-                nonlocal subid
-                subid = jmessage["subscribed"]
-                self.logger.debug("SUBID = " + subid)
-
-                # save the subscription id and the thread
-                self.websockets[subid] = ws
-
-                # invoke the handler
-                added = jmessage["firstResults"]["results"]["bindings"]
-                handler.handle(added, [])
-
-            elif "ping" in jmessage:                
-                pass # we ignore ping
+                
+            
+            if "notification" in jmessage:
+                
+                nonlocal spuid
+                sequence = jmessage["notification"]["sequence"]
+                spuid = jmessage["notification"]["spuid"]
+                if sequence == "0":     # just subscribed
+                    self.logger.log("Subscribed to spuid: " + spuid)
+                    self.websockets[spuid] = ws     # save the subscription id and the thread
+                elif handler is not None:
+                    added = jmessage["notification"]["addedResults"]
+                    removed = jmessage["results"]["removedResults"]
+                    handler.handle(added, removed)
+                    self.logger.debug("Added bindings: {}".format(added))
+                    self.logger.debug("Removed bindings: {}".format(removed))
+                    
+            elif "error" in jmessage:                
+                
+                handler.handleError(jmessage)
+                
+            elif "unsubscribed" in jmessage:
+                
+                uspuid = jmessage["unsubscribed"]["spuid"]
+                self.logger.log("Unsubscribed from spuid: " + uspuid)
+                
             else:
-                # parsing jmessage
-                added = jmessage["results"]["addedresults"]["bindings"]
-                removed = jmessage["results"]["removedresults"]["bindings"]
-                # debug print
-                self.logger.debug("Added bindings: {}".format(added))
-                self.logger.debug("Removed bindings: {}".format(removed))
 
-                # invoke the handler
-                handler.handle(added,removed)
+                self.logger.error("Unknown message received: " + jmessage)
 
 
         # on_error callback
         def on_error(ws, error):
 
-            # debug
             self.logger.debug("=== ConnectionHandler::on_error invoked ===")
+            self.logger.error("Error:" + error)
+            if handler is not None:
+                handler.handleError(error)
 
 
         # on_close callback
@@ -333,7 +383,7 @@ class ConnectionHandler:
 
             # destroy the websocket dictionary
             try:
-                del self.websockets[subid]
+                del self.websockets[spuid]
             except:
                 pass
 
@@ -343,48 +393,91 @@ class ConnectionHandler:
 
             # debug
             self.logger.debug("=== ConnectionHandler::on_open invoked ===")
-            
+
             # composing message
             msg = {}
-            msg["subscribe"] = sparql
-            msg["alias"] = alias
-            msg["authorization"] = self.configuration.jwt
+            msg["subscribe"]["sparql"] = sparql
+            if alias is not None:
+                msg["subscribe"]["alias"] = alias
+            if secure:
+                msg["subscribe"]["authorization"] = self.jwt
 
             # send subscription request
             ws.send(json.dumps(msg))
-            self.logger.debug(json.dumps(msg))
+            self.logger.debug(msg)
 
 
-        # configuring the websocket        
+        # configuring the websocket
         ws = websocket.WebSocketApp(subscribeURI,
                                     on_message = on_message,
                                     on_error = on_error,
                                     on_close = on_close,
                                     on_open = on_open)                                        
 
-        # starting the websocket thread
-        wst = threading.Thread(target=ws.run_forever, kwargs=dict(sslopt={"cert_reqs": ssl.CERT_NONE}))
+        wst = threading.Thread(target=ws.run_forever)
         wst.daemon = True
         wst.start()
 
         # return
-        while not subid:
+        while not spuid:
             self.logger.debug("Waiting for subscription ID")
             time.sleep(0.1)            
-        return subid
+        return spuid
     
-
-    def closeWebsocket(self, subid, secure):
-
+    
+    
         # debug
         self.logger.debug("=== ConnectionHandler::closeWebSocket invoked ===")
-
-        # TODO -- send the unsubscribe message instead of closing in a brutal way
+        
+        msg = {}
+        msg["unsubscribe"]["spuid"] = spuid
+        
+        if authorization is not None:
+            msg["unsubscribe"]["authorization"] = authorization
+        
+        
         
         # retrieve the subscription, close it and delete it
         try:
-            self.websockets[subid].close()
-            del self.websockets[subid]
+            self.websockets[spuid].close()
+            del self.websockets[spuid]
         except:
             pass
+        
+        
+    def getClientID(self):
+    
+        """Method used to obtain unique client ID from MAC"""
+        
+        self.client_id = str(get_mac())
+        self.yskDict["client_id"] = self.client_id
+        
+        
+    def yskHandler(self, File):
+        
+        """Method used to handle ysk file used to store credentials"""
+        
+        try:
+            with open(File) as yskFileStream:
+                self.yskDict = yaml.load(yskFileStream)
+            
+            self.filename = File
+            self.client_id = yskDict["security"].get(client_id)
+            self.client_secret = yskDict["security"].get(client_secret)
+            self.jwt = yskDict["security"].get("jwt")
+            self.expires = yskDict["security"].get("expires")
+            self.type = yskDict["security"].get("type")
+        except Exception as e:
+            self.logger.error("Parsing of the YSK file failed")
+            raise YSKParsingException("Parsing of the YSK file failed") 
+      
+    # store config
+    def storeConfig(self):
+
+        """Method used to update the content of the configuration file"""
+
+        # store data into file
+        with open(self.filename, "w") as yskFileStream:
+            yaml.dump(self.yskDict, yskFileStream)
+            yskFileStream.truncate()
         

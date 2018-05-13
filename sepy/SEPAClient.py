@@ -189,10 +189,10 @@ class SEPAClient:
             subscribeURI = self.configuration.secureSubscribeURI
             registerURI = self.configuration.registerURI
             tokenURI = self.configuration.tokenReqURI
-            subid = self.connectionManager.openSecureWebsocket(subscribeURI, sparqlQuery, alias, handler, registerURI, tokenURI)
+            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, alias = None, handler, registerURI, tokenURI, yskFile)
         else:
             subscribeURI = self.configuration.subscribeURI
-            subid = self.connectionManager.openUnsecureWebsocket(subscribeURI, sparqlQuery, alias, handler)
+            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, alias = None, handler)
         return subid
         
     
