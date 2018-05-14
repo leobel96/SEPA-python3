@@ -21,5 +21,8 @@ class YSKParsingException(Exception):
 class WrongFileException(Exception):
     pass
 
-class configurationParsingException(Exception):
+class ConfigurationParsingException(Exception):
+    pass
+
+class SubscriptionFailedException(Exception):
     pass

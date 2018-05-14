@@ -160,7 +160,7 @@ class ConfigurationObject:
             
         except KeyError as e:
             self.logger.error("Network configuration incomplete in file file")
-            raise configurationParsingException("Network configuration incomplete in configuration file")
+            raise ConfigurationParsingException("Network configuration incomplete in configuration file")
         
         if self.subscribeHost is None:
             subscribeHost = self.host
@@ -196,7 +196,7 @@ class ConfigurationObject:
         try:
             self.namespaces = self.configurationDict["namespaces"]
         except Exception as e:            
-            raise configurationParsingException("Error while reading namespaces of the configuration file")
+            raise ConfigurationParsingException("Error while reading namespaces of the configuration file")
 
         # define namespace sparql string
         self.nsSparql = ""
@@ -208,14 +208,14 @@ class ConfigurationObject:
         try:
             self.queries = self.configurationDict["queries"]
         except Exception as e:            
-            raise configurationParsingException("Error while reading queries of the configuration file")
+            raise ConfigurationParsingException("Error while reading queries of the configuration file")
 
         # read updates
         self.updates = {}
         try:
             self.updates = self.configurationDict["updates"]
         except Exception as e:            
-            raise configurationParsingException("Error while reading updates of the configuration file")
+            raise ConfigurationParsingException("Error while reading updates of the configuration file")
             
     def getQuery(self, queryName, forcedBindings):
 
@@ -308,7 +308,7 @@ class ConfigurationObject:
                 configurationSparql = self.queries[sparqlName]["sparql"]
             except KeyError as e:
                 self.logger.error("Query not found in configuration file")
-                raise configurationParsingException("Query not found in configuration file")
+                raise ConfigurationParsingException("Query not found in configuration file")
             
             try:
                 configurationForcedBindings = self.queries[sparqlName]["forcedBindings"]
@@ -323,7 +323,7 @@ class ConfigurationObject:
                 configurationForcedBindings = self.updates[sparqlName]["forcedBindings"]
             except KeyError as e:
                 self.logger.error("Update not found in configuration file")
-                raise configurationParsingException("Update not found in configuration file")
+                raise ConfigurationParsingException("Update not found in configuration file")
         
         # for every forced binding perform a substitution
         for v in forcedBindings.keys():

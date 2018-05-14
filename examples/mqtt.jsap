@@ -27,7 +27,7 @@
             }
         },
         "security":{
-            "host":"mml.arces.unibo.it",
+            "host":"localhost",
             "port":8443,
             "registration":"/oauth/register",
             "tokenRequest":"/oauth/token",

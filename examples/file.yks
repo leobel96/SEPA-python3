@@ -1,0 +1,7 @@
+---
+security:
+  client_id: SEPATest
+  client_secret:
+  jwt:
+  expires:
+  type:

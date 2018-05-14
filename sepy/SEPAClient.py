@@ -55,7 +55,7 @@ class SEPAClient:
 
         # initialize handler
         self.configuration = ConfigurationObject(File)
-        self.connectionManager = ConnectionHandler(File)        
+        self.connectionManager = ConnectionHandler()        
         
 
     # update
@@ -155,7 +155,7 @@ class SEPAClient:
         
 
     # susbscribe
-    def subscribe(self, subscriptionName, alias, handler, secure = False):
+    def subscribe(self, subscriptionName, alias = None, handler = None, yskFile = None):
 
         """
         This method is used to start a SPARQL subscription
@@ -170,7 +170,9 @@ class SEPAClient:
             A class to handle notifications
         secure : bool
             A boolean that states if the connection must be secure or not (default = False)
-
+        yskFile : str
+            The file that contains secure websocket credentials (default = None)
+        
         Returns
         -------
         subid : str
@@ -185,19 +187,19 @@ class SEPAClient:
         sparqlQuery = self.configuration.getQuery(subscriptionName, forcedBindings = {})
   
         subid = None
-        if secure:
+        if yskFile:
             subscribeURI = self.configuration.secureSubscribeURI
             registerURI = self.configuration.registerURI
             tokenURI = self.configuration.tokenReqURI
-            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, alias = None, handler, registerURI, tokenURI, yskFile)
+            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, registerURI, tokenURI, alias = alias, handler = handler, yskFile = yskFile)
         else:
             subscribeURI = self.configuration.subscribeURI
-            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, alias = None, handler)
+            subid = self.connectionManager.openWebsocket(subscribeURI, sparqlQuery, alias = alias, handler = handler)
         return subid
         
     
     # unsubscribe
-    def unsubscribe(self, subid, secure = False):
+    def unsubscribe(self, subid = None, secure = False):
 
         """
         This method is used to start a SPARQL subscription
@@ -215,5 +217,5 @@ class SEPAClient:
         self.logger.debug("=== KP::unsubscribe invoked ===")
 
         # close the subscription, given the id
-        self.connectionManager.closeWebsocket(subid, secure)
+        self.connectionManager.closeWebsocket(spuid = subid, secure = secure)
 
