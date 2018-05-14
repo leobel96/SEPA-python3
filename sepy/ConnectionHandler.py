@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # global requirements
-import threading
+from threading import Thread
 import websocket
 import requests
 import asyncio
@@ -185,6 +185,8 @@ class ConnectionHandler:
     # do open websocket
     def openWebsocket(self, subscribeURI, sparql, registerURI = None, tokenURI = None, alias = None, handler = None, yskFile = None):                         
 
+    #yskFile is used for credentials storage
+    
         # debug
         self.logger.debug("=== ConnectionHandler::openWebsocket invoked ===")
 
@@ -225,7 +227,7 @@ class ConnectionHandler:
                 if sequence == "0":     # just subscribed
                     self.logger.log("Subscribed to spuid: " + spuid)
                     temp = {}
-                    temp["ws"] = subscribeURI
+                    temp["ws"] = ws
                     temp["authorization"] = self.jwt
                     self.websockets[spuid] = temp    # save the subscription id, the thread and the jwt
          
@@ -250,6 +252,11 @@ class ConnectionHandler:
                 
                 uspuid = jmessage["unsubscribed"]["spuid"]
                 self.logger.log("Successfully unsubscribed from spuid: " + uspuid)
+                try:
+                    ws.close()
+                    del self.websockets[uspuid]
+                except:
+                    pass
                 
             else:
 
@@ -306,50 +313,41 @@ class ConnectionHandler:
                                     on_close = on_close,
                                     on_open = on_open)                                        
         
-        wst = None
+        # I don't know why but thread immediately dies. If I don't use threads, the rest
+        # of the code stops working
+        
         if secure:
-            wst = threading.Thread(target=ws.run_forever, kwargs=dict(sslopt={"cert_reqs": ssl.CERT_NONE}))
+            wst=Thread(target=ws.run_forever,kargs=dict(sslopt={"cert_reqs": ssl.CERT_NONE}))
         else:
-            wst = threading.Thread(target=ws.run_forever)
+            wst=Thread(target=ws.run_forever)
+        
         wst.daemon = True
         wst.start()
-
         # return
         while not spuid:
             self.logger.debug("Waiting for subscription ID")
             time.sleep(0.1)            
+        #self.lastSpuid = spuid
         return spuid
-        self.lastSpuid = spuid
-
-
-
-    def closeWebsocket(self, spuid = None, secure = False): # No idea why it doesn't work
-
-        # debug
-        self.logger.debug("=== ConnectionHandler::closeWebsocket invoked ===")
-        spuid = spuid
-        if spuid is None:   # If no spuid is passed, close last opened WebSocket
-            if self.lastSpuid is None:
-                raise SubscriptionFailedException("No subscription initialized")
-            else:
-                spuid = self.lastSpuid
-                
-        message = {}
-        temp = {}
-        temp["spuid"] = spuid     
-        if secure:
-            temp["authorization"] = self.websockets[spuid]["authorization"]
-        message["unsubscribe"] = temp
         
-        ws = websocket.WebSocketApp(self.websockets[spuid]["ws"])
-        print("ws: {}".format(ws))
-        ws.send(json.dumps(message))
+        def close():
         
-        try:
-            self.websockets[spuid]["ws"].close()
-            del self.websockets[spuid]
-        except:
-            pass
+            # debug
+            self.logger.debug("=== ConnectionHandler::closeWebsocket invoked ===")
+
+            nonlocal spuid
+            nonlocal ws
+            
+            # Compose unsubscription message
+            message = {}
+            temp = {}
+            temp["spuid"] = spuid     
+            if secure:
+                temp["authorization"] = self.websockets[spuid]["authorization"]
+            message["unsubscribe"] = temp
+            
+            print("ws: {}".format(ws))
+            ws.send(json.dumps(message))
         
         
     def getClientID(self):

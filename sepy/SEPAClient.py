@@ -198,7 +198,7 @@ class SEPAClient:
         return subid
         
     
-    # unsubscribe
+    # Please unsubscribe with close method in ConnectionHandler. Here it is not implemented.
     def unsubscribe(self, subid = None, secure = False):
 
         """
