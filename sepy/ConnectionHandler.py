@@ -298,9 +298,6 @@ class ConnectionHandler:
             self.logger.debug(msg)
             ws.send(json.dumps(msg))
         
-        def close():
-            nonlocal ws
-            ws.send()
 
         # configuring the websocket
         ws = websocket.WebSocketApp(subscribeURI,
@@ -309,7 +306,6 @@ class ConnectionHandler:
                                     on_close = on_close,
                                     on_open = on_open)                                        
         
-        print("ws: {}".format(ws))
         wst = None
         if secure:
             wst = threading.Thread(target=ws.run_forever, kwargs=dict(sslopt={"cert_reqs": ssl.CERT_NONE}))
@@ -327,7 +323,7 @@ class ConnectionHandler:
 
 
 
-    def closeWebsocket(self, spuid = None, secure = False):
+    def closeWebsocket(self, spuid = None, secure = False): # No idea why it doesn't work
 
         # debug
         self.logger.debug("=== ConnectionHandler::closeWebsocket invoked ===")
